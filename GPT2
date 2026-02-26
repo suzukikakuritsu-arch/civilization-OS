@@ -1,0 +1,138 @@
+Stability Research Framework v3.0
+"""
+Stability Optimization Research Framework v3.0
+Multi-seed statistical validation
+Confidence intervals + significance testing
+Fully reproducible experiment
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+
+# =========================
+# Constants
+# =========================
+PHI = (1 + np.sqrt(5)) / 2
+YAMATO = 8 / 5
+DIM = 1000
+ITER = 1000
+SEEDS = 50
+
+# =========================
+# Core Functions
+# =========================
+def normalize(w):
+    norm = np.linalg.norm(w)
+    return w / norm if norm != 0 else w
+
+def standard_update(weights):
+    noise = np.random.normal(0, 0.05, weights.shape)
+    return normalize(weights + noise)
+
+def phi_damped_update(weights, phi_ratio=PHI, yamato_ratio=YAMATO):
+    noise = np.random.normal(0, 0.05, weights.shape)
+    damped = weights * np.exp(-phi_ratio * noise) * yamato_ratio
+    return normalize(damped)
+
+def stability_metric(w):
+    return 1 / (1 + np.var(w))
+
+# =========================
+# Multi-seed Experiment
+# =========================
+std_results = []
+phi_results = []
+improvements = []
+
+all_std_curves = []
+all_phi_curves = []
+
+for seed in range(SEEDS):
+    np.random.seed(seed)
+
+    std_w = normalize(np.random.randn(DIM))
+    phi_w = std_w.copy()
+
+    std_curve = []
+    phi_curve = []
+
+    for _ in range(ITER):
+        std_w = standard_update(std_w)
+        phi_w = phi_damped_update(phi_w)
+
+        std_curve.append(stability_metric(std_w))
+        phi_curve.append(stability_metric(phi_w))
+
+    std_final = np.mean(std_curve[-100:])
+    phi_final = np.mean(phi_curve[-100:])
+    improvement = (phi_final - std_final) / std_final * 100
+
+    std_results.append(std_final)
+    phi_results.append(phi_final)
+    improvements.append(improvement)
+
+    all_std_curves.append(std_curve)
+    all_phi_curves.append(phi_curve)
+
+# =========================
+# Statistics
+# =========================
+std_mean = np.mean(std_results)
+phi_mean = np.mean(phi_results)
+improve_mean = np.mean(improvements)
+
+std_ci = stats.t.interval(
+    0.95, len(std_results)-1,
+    loc=std_mean,
+    scale=stats.sem(std_results)
+)
+
+phi_ci = stats.t.interval(
+    0.95, len(phi_results)-1,
+    loc=phi_mean,
+    scale=stats.sem(phi_results)
+)
+
+t_stat, p_value = stats.ttest_rel(phi_results, std_results)
+
+# =========================
+# Output
+# =========================
+print("\n===== FINAL RESULTS =====")
+print(f"Standard Mean Stability: {std_mean:.5f}")
+print(f"Phi-Damped Mean Stability: {phi_mean:.5f}")
+print(f"Mean Improvement: {improve_mean:.2f}%")
+
+print("\n95% Confidence Intervals:")
+print(f"Standard CI: {std_ci}")
+print(f"Phi-Damped CI: {phi_ci}")
+
+print("\nPaired t-test:")
+print(f"t-statistic: {t_stat:.4f}")
+print(f"p-value: {p_value:.6f}")
+
+# =========================
+# Visualization
+# =========================
+
+# Mean curves
+mean_std_curve = np.mean(all_std_curves, axis=0)
+mean_phi_curve = np.mean(all_phi_curves, axis=0)
+
+plt.figure(figsize=(10,5))
+plt.plot(mean_std_curve, label="Standard")
+plt.plot(mean_phi_curve, label="Phi-Damped")
+plt.title("Stability Over Time (Mean of 50 seeds)")
+plt.xlabel("Iteration")
+plt.ylabel("Stability")
+plt.legend()
+plt.show()
+
+# Improvement distribution
+plt.figure(figsize=(6,5))
+plt.hist(improvements, bins=15)
+plt.title("Distribution of Improvement (%)")
+plt.xlabel("Improvement %")
+plt.ylabel("Frequency")
+plt.show()
