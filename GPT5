@@ -1,0 +1,24 @@
+import numpy as np
+
+
+class MixtureModel:
+    def __init__(self, basis_functions):
+        """
+        basis_functions: list of callable f_j(x)
+        """
+        self.f = basis_functions
+        self.d = len(basis_functions)
+
+    def density(self, x, w):
+        return sum(w[j] * self.f[j](x) for j in range(self.d))
+
+    def log_likelihood(self, X, w):
+        return np.sum(np.log([self.density(x, w) for x in X]))
+
+    def gradient(self, X, w):
+        grad = np.zeros(self.d)
+        for x in X:
+            denom = self.density(x, w)
+            for j in range(self.d):
+                grad[j] += self.f[j](x) / denom
+        return grad / len(X)
