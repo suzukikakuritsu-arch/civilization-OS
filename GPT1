@@ -1,0 +1,56 @@
+"""
+Stability Optimization Simulation v2.0
+Fair Comparison: Standard Update vs Phi-based Damping
+Reproducible & Statistically Comparable
+"""
+
+import numpy as np
+
+print("🚀 Stability Simulation Start")
+print("Standard Update vs Phi-based Nonlinear Damping")
+
+# 定数
+PHI = (1 + np.sqrt(5)) / 2
+YAMATO = 8 / 5
+
+def normalize(w):
+    norm = np.linalg.norm(w)
+    return w / norm if norm != 0 else w
+
+def standard_update(weights):
+    noise = np.random.normal(0, 0.05, weights.shape)
+    return normalize(weights + noise)
+
+def phi_damped_update(weights, phi_ratio=PHI, yamato_ratio=YAMATO):
+    noise = np.random.normal(0, 0.05, weights.shape)
+    damped = weights * np.exp(-phi_ratio * noise) * yamato_ratio
+    return normalize(damped)
+
+# 再現性確保
+np.random.seed(42)
+
+# 初期化
+std_weights = normalize(np.random.randn(1000))
+phi_weights = std_weights.copy()
+
+stabilities = {"Standard": [], "Phi-Damped": []}
+
+for _ in range(1000):
+    std_weights = standard_update(std_weights)
+    phi_weights = phi_damped_update(phi_weights)
+
+    std_stability = 1 / (1 + np.var(std_weights))
+    phi_stability = 1 / (1 + np.var(phi_weights))
+
+    stabilities["Standard"].append(std_stability)
+    stabilities["Phi-Damped"].append(phi_stability)
+
+# 最終平均（後半100ステップ）
+std_final = np.mean(stabilities["Standard"][-100:])
+phi_final = np.mean(stabilities["Phi-Damped"][-100:])
+improvement = (phi_final - std_final) / std_final * 100
+
+print("\n📊 Final Comparison:")
+print(f"Standard Stability: {std_final:.4f}")
+print(f"Phi-Damped Stability: {phi_final:.4f}")
+print(f"Relative Improvement: {improvement:.2f}%")
