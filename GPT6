@@ -1,0 +1,65 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from model import MixtureModel
+from utils import multiplicative_update
+
+# ----------------------
+# Synthetic Data
+# ----------------------
+np.random.seed(42)
+
+def gaussian(mu, sigma):
+    return lambda x: (
+        1 / (np.sqrt(2 * np.pi) * sigma)
+        * np.exp(-(x - mu) ** 2 / (2 * sigma**2))
+    )
+
+# True mixture
+true_w = np.array([0.7, 0.3])
+components = [gaussian(-2, 1), gaussian(2, 1)]
+
+# Generate data
+n = 1000
+X = []
+for _ in range(n):
+    if np.random.rand() < true_w[0]:
+        X.append(np.random.normal(-2, 1))
+    else:
+        X.append(np.random.normal(2, 1))
+X = np.array(X)
+
+# ----------------------
+# Model Setup
+# ----------------------
+model = MixtureModel(components)
+
+w = np.ones(2) / 2
+eta = 0.1
+epochs = 200
+
+log_likelihoods = []
+
+# ----------------------
+# Training Loop
+# ----------------------
+for epoch in range(epochs):
+    grad = model.gradient(X, w)
+    w = multiplicative_update(w, grad, eta)
+
+    ll = model.log_likelihood(X, w)
+    log_likelihoods.append(ll)
+
+    if epoch % 20 == 0:
+        print(f"Epoch {epoch}: LL = {ll:.4f}, w = {w}")
+
+# ----------------------
+# Plot
+# ----------------------
+plt.plot(log_likelihoods)
+plt.title("Log-Likelihood Convergence")
+plt.xlabel("Epoch")
+plt.ylabel("Log-Likelihood")
+plt.show()
+
+print("\nFinal estimated weights:", w)
+print("True weights:", true_w)
