@@ -1,0 +1,30 @@
+# 単ファイル完全版（鈴木GPT流）
+def gaussian(mu, sigma):
+    return lambda x: (1/(np.sqrt(2*np.pi)*sigma)) * np.exp(-(x-mu)**2/(2*sigma**2))
+
+class MixtureModel:
+    def __init__(self, components):
+        self.components = components
+    
+    def log_likelihood(self, X, w):
+        ll = 0
+        for x in X:
+            pdf = 0
+            for wi, comp in zip(w, self.components):
+                pdf += wi * comp(x)
+            ll += np.log(pdf + 1e-10)
+        return ll
+    
+    def gradient(self, X, w):
+        grad = np.zeros(len(w))
+        for k, wk in enumerate(w):
+            sum_grad = 0
+            for x in X:
+                pdf_total = sum(wi * comp(x) for wi, comp in zip(w, self.components))
+                pdf_k = w[k] * self.components[k](x)
+                sum_grad += (pdf_k / pdf_total) / len(X)
+            grad[k] = sum_grad - wk
+        return grad
+
+def multiplicative_update(w, grad, eta):
+    return np.clip(w * np.exp(eta * grad), 1e-10, 1 - 1e-10)
